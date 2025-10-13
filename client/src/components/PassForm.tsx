@@ -1,27 +1,17 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { insertPassSchema, type InsertPass } from "@shared/schema";
+import { UseFormReturn } from "react-hook-form";
+import { type InsertPass } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { User, Mail, Award } from "lucide-react";
 
 interface PassFormProps {
+  form: UseFormReturn<InsertPass>;
   onSubmit: (data: InsertPass) => void;
   isLoading?: boolean;
 }
 
-export default function PassForm({ onSubmit, isLoading }: PassFormProps) {
-  const form = useForm<InsertPass>({
-    resolver: zodResolver(insertPassSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      points: 0,
-    },
-  });
-
+export default function PassForm({ form, onSubmit, isLoading }: PassFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
