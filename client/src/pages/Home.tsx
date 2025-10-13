@@ -3,8 +3,6 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPassSchema, type InsertPass } from "@shared/schema";
 import PassForm from "@/components/PassForm";
-import WalletButtons from "@/components/WalletButtons";
-import InfoCard from "@/components/InfoCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppSidebar from "@/components/AppSidebar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +11,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 export default function Home() {
   const [generatedPass, setGeneratedPass] = useState<(InsertPass & { id: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<InsertPass>({
     resolver: zodResolver(insertPassSchema),
@@ -38,23 +37,50 @@ export default function Home() {
 
   const handleFormSubmit = async (data: InsertPass) => {
     setIsLoading(true);
+    setError(null);
     
-    // TODO: Replace with actual backend API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const passId = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    setGeneratedPass({ ...data, id: passId });
-    setIsLoading(false);
+    try {
+      // TODO: Replace with actual backend API call
+      // Example:
+      // const response = await fetch('/api/passes', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(data)
+      // });
+      // if (!response.ok) throw new Error('Failed to create pass');
+      // const result = await response.json();
+      
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Simulate random success/failure for demo
+      const shouldSucceed = Math.random() > 0.2; // 80% success rate
+      
+      if (!shouldSucceed) {
+        throw new Error('Failed to create pass. Please try again.');
+      }
+      
+      const passId = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      setGeneratedPass({ ...data, id: passId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create pass');
+      setGeneratedPass(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleWallet = () => {
     console.log("Adding to Google Wallet:", generatedPass);
     // TODO: Implement Google Wallet integration with backend
+    // Example:
+    // window.location.href = `https://pay.google.com/gp/v/save/${googleWalletToken}`;
   };
 
   const handleAppleWallet = () => {
     console.log("Adding to Apple Wallet:", generatedPass);
     // TODO: Implement Apple Wallet integration with backend
+    // Example:
+    // window.location.href = `/api/passes/${generatedPass?.id}/apple-wallet`;
   };
 
   const sidebarStyle = {
@@ -106,27 +132,18 @@ export default function Home() {
                 </Card>
               </div>
             </section>
-
-            {/* Wallet Buttons Section */}
-            {generatedPass && (
-              <>
-                <section className="py-6 px-4">
-                  <WalletButtons
-                    onGoogleWallet={handleGoogleWallet}
-                    onAppleWallet={handleAppleWallet}
-                  />
-                </section>
-
-                <section className="py-6 px-4 pb-12">
-                  <InfoCard />
-                </section>
-              </>
-            )}
           </main>
         </div>
 
         {/* Sidebar with Live Preview */}
-        <AppSidebar formValues={formValues} generatedPass={generatedPass} />
+        <AppSidebar 
+          formValues={formValues} 
+          generatedPass={generatedPass}
+          isGenerating={isLoading}
+          error={error}
+          onGoogleWallet={handleGoogleWallet}
+          onAppleWallet={handleAppleWallet}
+        />
       </div>
     </SidebarProvider>
   );
