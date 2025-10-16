@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPassSchema, type InsertPass } from "@shared/schema";
@@ -8,8 +8,18 @@ import AppSidebar from "@/components/AppSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
+type GeneratedPass = InsertPass & {
+  id: string;
+  googleUrl?: string;
+  appleUrl?: string;
+};
+
+const API_BASE =
+  import.meta.env.NEXT_PUBLIC_API_BASE ??
+  "https://google-aplplewallet-pass.onrender.com"; 
+
 export default function Home() {
-  const [generatedPass, setGeneratedPass] = useState<(InsertPass & { id: string }) | null>(null);
+  const [generatedPass, setGeneratedPass] = useState<GeneratedPass | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,75 +31,108 @@ export default function Home() {
       email: "",
       points: 0,
     },
+    mode: "onChange",
   });
 
   const firstName = useWatch({ control: form.control, name: "firstName", defaultValue: "" });
-  const lastName = useWatch({ control: form.control, name: "lastName", defaultValue: "" });
-  const email = useWatch({ control: form.control, name: "email", defaultValue: "" });
-  const points = useWatch({ control: form.control, name: "points", defaultValue: 0 });
+  const lastName  = useWatch({ control: form.control, name: "lastName", defaultValue: "" });
+  const email     = useWatch({ control: form.control, name: "email", defaultValue: "" });
+  const points    = useWatch({ control: form.control, name: "points", defaultValue: 0 });
 
-  const formValues: Partial<InsertPass> = {
-    firstName,
-    lastName,
-    email,
-    points,
+  const formValues: Partial<InsertPass> = useMemo(
+    () => ({ firstName, lastName, email, points }),
+    [firstName, lastName, email, points]
+  );
+
+ 
+  const buildAppleUrl = (p: InsertPass) => {
+    const qs = new URLSearchParams({
+      name: p.firstName,   
+      surname: p.lastName,
+      email: p.email,
+      points: String(p.points ?? 0),
+    });
+    return `${API_BASE}/apple/generate-pass?${qs.toString()}`;
   };
 
   const handleFormSubmit = async (data: InsertPass) => {
     setIsLoading(true);
     setError(null);
-    
+    setGeneratedPass(null);
+
     try {
-      // TODO: Replace with actual backend API call
-      // Example:
-      // const response = await fetch('/api/passes', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(data)
-      // });
-      // if (!response.ok) throw new Error('Failed to create pass');
-      // const result = await response.json();
-      
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Simulate random success/failure for demo
-      const shouldSucceed = Math.random() > 0.2; // 80% success rate
-      
-      if (!shouldSucceed) {
-        throw new Error('Failed to create pass. Please try again.');
+      // GOOGLE: POST like your Velo code
+      const res = await fetch(`${API_BASE}/google/generate-pass`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.firstName,
+          surname: data.lastName,
+          email: data.email,
+          points: data.points,
+          firstName: data.firstName,
+          lastName: data.lastName,
+        }),
+      });
+
+      let payload: any = null;
+      try { payload = await res.json(); } catch { /* ignore parse error */ }
+
+      if (!res.ok) {
+        const msg = payload?.message || payload?.error || "Failed to create pass";
+        throw new Error(msg);
       }
-      
-      const passId = `PASS-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      setGeneratedPass({ ...data, id: passId });
+
+      // normalize google url fields
+      const googleUrl =
+        payload?.walletUrl || payload?.googleUrl || payload?.saveUrl || payload?.link;
+      const appleUrl = buildAppleUrl(data);
+
+      const passId = payload?.id || `PASS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+      setGeneratedPass({
+        ...data,
+        id: passId,
+        googleUrl: googleUrl || undefined,
+        appleUrl,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create pass');
-      setGeneratedPass(null);
+      setError(err instanceof Error ? err.message : "Failed to create pass");
     } finally {
       setIsLoading(false);
     }
   };
 
+
   const handleGoogleWallet = () => {
-    console.log("Adding to Google Wallet:", generatedPass);
-    // TODO: Implement Google Wallet integration with backend
-    // Example:
-    // window.location.href = `https://pay.google.com/gp/v/save/${googleWalletToken}`;
+    if (generatedPass?.googleUrl) {
+      window.location.href = generatedPass.googleUrl;
+    }
   };
 
   const handleAppleWallet = () => {
-    console.log("Adding to Apple Wallet:", generatedPass);
-    // TODO: Implement Apple Wallet integration with backend
-    // Example:
-    // window.location.href = `/api/passes/${generatedPass?.id}/apple-wallet`;
+    if (generatedPass?.appleUrl) {
+      window.location.href = generatedPass.appleUrl;
+      return;
+    }
+  
+    const data: InsertPass = {
+      firstName: firstName || "",
+      lastName: lastName || "",
+      email: email || "",
+      points: points ?? 0,
+    };
+    const url = buildAppleUrl(data);
+    window.location.href = url;
   };
 
   const sidebarStyle = {
     "--sidebar-width": "28rem",
     "--sidebar-width-icon": "3rem",
-  };
+  } as React.CSSProperties;
 
   return (
-    <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+    <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Header */}
@@ -106,28 +149,33 @@ export default function Home() {
           {/* Main Content */}
           <main className="flex-1 overflow-auto">
             {/* Hero Section */}
-            <section className="relative min-h-[35vh] flex items-center justify-center bg-gradient-to-br from-primary via-chart-2 to-chart-2 text-white overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.1),transparent_50%)]" />
-              <div className="relative text-center px-4 py-12">
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+            <section className="">
+              
+              <div className="relative text-center px-4 ">
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight ">
                   Generate Your Digital Pass
                 </h2>
-                <p className="text-base md:text-lg text-white/90 max-w-2xl mx-auto">
+                <p className="text-base md:text-lg  max-w-2xl mx-auto">
                   Create secure, wallet-ready passes in seconds
                 </p>
               </div>
             </section>
 
             {/* Form Section */}
-            <section className="py-12 px-4">
+            <section className="py-5 px-4">
               <div className="max-w-md mx-auto">
                 <Card>
                   <CardContent className="p-8">
-                    <PassForm 
+                    <PassForm
                       form={form}
-                      onSubmit={handleFormSubmit} 
+                      onSubmit={handleFormSubmit}
                       isLoading={isLoading}
                     />
+                    {error && (
+                      <p className="mt-4 text-sm text-red-500" role="alert">
+                        {error}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -136,8 +184,8 @@ export default function Home() {
         </div>
 
         {/* Sidebar with Live Preview */}
-        <AppSidebar 
-          formValues={formValues} 
+        <AppSidebar
+          formValues={formValues}
           generatedPass={generatedPass}
           isGenerating={isLoading}
           error={error}
