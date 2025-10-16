@@ -2,21 +2,34 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+type Theme = "light" | "dark";
 
+function setHtmlTheme(t: Theme) {
+  const root = document.documentElement;
+  if (t === "dark") root.classList.add("dark");
+  else root.classList.remove("dark");
+}
+
+export default function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  // read saved preference on mount (default remains dark)
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as "light" | "dark" | null;
-    const initialTheme = stored || "light";
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+    try {
+      const saved = localStorage.getItem("theme") as Theme | null;
+      const initial: Theme = saved ?? "dark";
+      setTheme(initial);
+      setHtmlTheme(initial);
+    } catch {
+      setHtmlTheme("dark");
+    }
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try { localStorage.setItem("theme", next); } catch {}
+    setHtmlTheme(next);
   };
 
   return (
@@ -24,13 +37,10 @@ export default function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
+      aria-label="Toggle theme"
       data-testid="button-theme-toggle"
     >
-      {theme === "light" ? (
-        <Moon className="h-5 w-5" />
-      ) : (
-        <Sun className="h-5 w-5" />
-      )}
+      {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
     </Button>
   );
 }
