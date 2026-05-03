@@ -27,7 +27,9 @@ type GeneratedPass = PreviewPassData & {
   appleUrl?: string;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "https://google-aplplewallet-pass-1.onrender.com";
+const API_BASE =
+  import.meta.env.VITE_API_BASE ??
+  "https://google-aplplewallet-pass-1.onrender.com";
 
 export default function Home() {
   const [generatedPass, setGeneratedPass] = useState<GeneratedPass | null>(null);
@@ -140,9 +142,13 @@ export default function Home() {
     }
   };
 
+  const handleGoogleWallet = () => { if (generatedPass?.googleUrl) window.location.href = generatedPass.googleUrl; };
+  const handleAppleWallet = () => { if (generatedPass?.appleUrl) window.location.href = generatedPass.appleUrl; };
+
   return (
     <SidebarProvider style={{ "--sidebar-width": "28rem", "--sidebar-width-icon": "3rem" } as React.CSSProperties}>
       <div className="flex h-screen w-full">
+        {/* Main Content */}
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="border-b border-border flex-shrink-0">
             <div className="px-4 py-4 flex items-center justify-between gap-4">
@@ -157,7 +163,6 @@ export default function Home() {
           <main className="flex-1 overflow-auto">
             <section className="text-center px-4 py-6">
               <h2 className="text-3xl font-bold">Generate Your Digital Pass</h2>
-              <p className="text-base mt-2">Create secure wallet-ready passes in seconds</p>
             </section>
 
             <section className="py-5 px-4">
@@ -168,20 +173,38 @@ export default function Home() {
                     {error && <p className="mt-4 text-sm text-red-500">{error}</p>}
                   </CardContent>
                 </Card>
+
+                {/* MOBILE-ONLY PREVIEW SECTION */}
+                {generatedPass && (
+                  <div className="md:hidden mt-8 p-6 border border-border rounded-xl bg-card shadow-sm space-y-4">
+                    <h3 className="font-semibold text-center">Your Pass is Ready</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={handleGoogleWallet} className="bg-[#4285f4] text-white py-3 rounded-lg text-sm font-semibold hover:bg-blue-600 transition">
+                        Google Wallet
+                      </button>
+                      <button onClick={handleAppleWallet} className="bg-black text-white py-3 rounded-lg text-sm font-semibold hover:bg-zinc-800 transition">
+                        Apple Wallet
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           </main>
         </div>
 
-        <AppSidebar
-          passData={passData}
-          generatedPass={generatedPass}
-          isGenerating={isLoading}
-          error={error}
-          onPassDataChange={handlePassDataChange}
-          onGoogleWallet={() => generatedPass?.googleUrl && (window.location.href = generatedPass.googleUrl)}
-          onAppleWallet={() => generatedPass?.appleUrl && (window.location.href = generatedPass.appleUrl)}
-        />
+        {/* DESKTOP-ONLY SIDEBAR */}
+        <div className="hidden md:block">
+          <AppSidebar
+            passData={passData}
+            generatedPass={generatedPass}
+            isGenerating={isLoading}
+            error={error}
+            onPassDataChange={handlePassDataChange}
+            onGoogleWallet={handleGoogleWallet}
+            onAppleWallet={handleAppleWallet}
+          />
+        </div>
       </div>
     </SidebarProvider>
   );
